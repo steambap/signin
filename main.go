@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"log"
 )
 
 type Env struct {
@@ -53,14 +54,37 @@ func dateFilter(ctx *gin.Context) {
 	ctx.Next()
 }
 
-func (env *Env) getDaily(ctx *gin.Context) {
-	var body Body
-	dateKey := ctx.GetString("dateKey")
-	err := env.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(BUCKET_NAME)
+func locationFilter(ctx *gin.Context) {
+	// 11 默认天津南开心栈
+	locKey := ctx.DefaultQuery("loc", "11")
+	if locVal, ok := bucketMap[locKey]; ok {
+		ctx.Set("loc", locVal)
+	} else {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, Reply{Msg: "心栈位置错误"})
+		return
+	}
 
-		err := json.Unmarshal(bucket.Get([]byte(dateKey)), &body)
-		return err
+	ctx.Next()
+}
+
+func (env *Env) getDaily(ctx *gin.Context) {
+	var body = Body{
+		Names: make([]string, 0),
+		Tags: make([]string, 0),
+		Comment: "",
+		CupSize: -1,
+	}
+	dateKey := ctx.GetString("dateKey")
+	loc := ctx.GetString("loc")
+	err := env.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(loc))
+
+		if err := json.Unmarshal(bucket.Get([]byte(dateKey)), &body); err != nil {
+			log.Printf("JSON error: %s", err)
+			return nil
+		} else {
+			return nil
+		}
 	})
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, Reply{Msg: "读取数据库错误"})
@@ -82,15 +106,16 @@ func marshalBody(ctx *gin.Context) {
 		return
 	}
 
-	ctx.Set("body", string(val))
+	ctx.Set("body", val)
 	ctx.Next()
 }
 
 func (env *Env) putDaily(ctx *gin.Context) {
-	body := []byte(ctx.GetString("body"))
+	body := ctx.Keys["body"].([]byte)
 	dateKey := ctx.GetString("dateKey")
+	loc := ctx.GetString("loc")
 	err := env.db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists(BUCKET_NAME)
+		bucket, err := tx.CreateBucketIfNotExists([]byte(loc))
 		if err != nil {
 			return err
 		}
@@ -114,14 +139,14 @@ func main() {
 
 	router := gin.Default()
 
-	router.GET("/log", dateFilter, env.getDaily)
-	router.POST("/log", dateFilter, marshalBody, env.putDaily)
+	router.GET("/log", dateFilter, locationFilter, env.getDaily)
+	router.POST("/log", dateFilter, locationFilter, marshalBody, env.putDaily)
 
 	router.Run(":8900")
 }
 
 func assert(err error) {
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
