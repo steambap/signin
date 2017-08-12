@@ -8,6 +8,9 @@ import (
 	"strings"
 	"time"
 	"log"
+	"strconv"
+	"bytes"
+	"fmt"
 )
 
 type Env struct {
@@ -115,12 +118,9 @@ func (env *Env) putDaily(ctx *gin.Context) {
 	dateKey := ctx.GetString("dateKey")
 	loc := ctx.GetString("loc")
 	err := env.db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(loc))
-		if err != nil {
-			return err
-		}
+		bucket := tx.Bucket([]byte(loc))
 
-		err = bucket.Put([]byte(dateKey), body)
+		err := bucket.Put([]byte(dateKey), body)
 
 		return err
 	})
@@ -129,6 +129,45 @@ func (env *Env) putDaily(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, Reply{Msg: "OK"})
+}
+
+func yearFilter(ctx *gin.Context) {
+	num := ctx.Param("num")
+	year, err := strconv.ParseInt(num, 10, 64)
+	if err != nil || year < 2007 {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, Reply{Msg: "日期格式错误"})
+		return
+	}
+
+	ctx.Set("year", year)
+	ctx.Next()
+}
+
+func addToYearMap(nameSet map[string]bool, value []byte) map[string]bool {
+	return nameSet
+}
+
+func (env *Env) getYear(ctx *gin.Context) {
+	year := ctx.GetInt("year")
+	loc := ctx.GetString("loc")
+	nameSet := map[string]bool{}
+	err := env.db.View(func(tx *bolt.Tx) error {
+		cursor := tx.Bucket([]byte(loc)).Cursor()
+
+		min := []byte(string(year) + "-01-01")
+		max := []byte(string(year + 1) + "-01-01")
+
+		for k, v := cursor.Seek(min); k != nil && bytes.Compare(k, max) < 0; k, v = cursor.Next() {
+			nameSet = addToYearMap(nameSet, v)
+		}
+
+		return nil
+	})
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, Reply{Msg: "读取数据库错误"})
+		return
+	}
+	ctx.JSON(http.StatusOK, nameSet)
 }
 
 func main() {
@@ -141,6 +180,7 @@ func main() {
 
 	router.GET("/log", dateFilter, locationFilter, env.getDaily)
 	router.POST("/log", dateFilter, locationFilter, marshalBody, env.putDaily)
+	router.GET("/log/year/:num", yearFilter, env.getYear)
 
 	router.Run(":8900")
 }
