@@ -6,8 +6,8 @@ import (
 
 const DB_NAME = "xz.db"
 
-func startBoltDb() *bolt.DB {
-	db, err := bolt.Open(DB_NAME, 0600, nil)
+func startBoltDb(dbName string) *bolt.DB {
+	db, err := bolt.Open(dbName, 0600, nil)
 	assert(err)
 
 	for _, bucketName := range bucketMap {

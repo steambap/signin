@@ -132,7 +132,7 @@ func (env *Env) putDaily(ctx *gin.Context) {
 }
 
 func main() {
-	db := startBoltDb()
+	db := startBoltDb(DB_NAME)
 	defer db.Close()
 
 	env := &Env{db: db}
