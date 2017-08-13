@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/boltdb/bolt"
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
@@ -60,10 +61,15 @@ func locationFilter(ctx *gin.Context) {
 	// 11 默认天津南开心栈
 	locKey := ctx.DefaultQuery("loc", "11")
 	if locVal, ok := bucketMap[locKey]; ok {
+		log.Printf("-->%s", locVal)
 		ctx.Set("loc", locVal)
 	} else {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, Reply{Msg: "心栈位置错误"})
 		return
+	}
+	// Test Bucket has only one date
+	if locKey == "0" {
+		ctx.Set("dateKey", "2017-03-01")
 	}
 
 	ctx.Next()
@@ -82,7 +88,6 @@ func (env *Env) getDaily(ctx *gin.Context) {
 		bucket := tx.Bucket([]byte(loc))
 
 		if err := json.Unmarshal(bucket.Get([]byte(dateKey)), &body); err != nil {
-			log.Printf("JSON error: %s", err)
 			return nil
 		} else {
 			return nil
@@ -192,6 +197,7 @@ func main() {
 	env := &Env{db: db}
 
 	router := gin.Default()
+	router.Use(gzip.Gzip(gzip.DefaultCompression))
 
 	router.GET("/log", dateFilter, locationFilter, env.getDaily)
 	router.POST("/log", dateFilter, locationFilter, marshalBody, env.putDaily)
