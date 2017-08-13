@@ -1,16 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/boltdb/bolt"
 	"github.com/gin-gonic/gin"
+	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
-	"log"
-	"strconv"
-	"bytes"
-	"fmt"
 )
 
 type Env struct {
@@ -72,8 +71,8 @@ func locationFilter(ctx *gin.Context) {
 
 func (env *Env) getDaily(ctx *gin.Context) {
 	var body = Body{
-		Names: make([]string, 0),
-		Tags: make([]string, 0),
+		Names:   make([]string, 0),
+		Tags:    make([]string, 0),
 		Comment: "",
 		CupSize: -1,
 	}
@@ -143,22 +142,34 @@ func yearFilter(ctx *gin.Context) {
 	ctx.Next()
 }
 
-func addToYearMap(nameSet map[string]bool, value []byte) map[string]bool {
-	return nameSet
+func addToYearMap(nameMap map[string]bool, value []byte) map[string]bool {
+	body := Body{
+		Names:   make([]string, 0),
+		Tags:    make([]string, 0),
+		Comment: "",
+		CupSize: -1,
+	}
+	if err := json.Unmarshal(value, &body); err != nil {
+		return nameMap
+	}
+	for _, name := range body.Names {
+		nameMap[name] = true
+	}
+	return nameMap
 }
 
 func (env *Env) getYear(ctx *gin.Context) {
-	year := ctx.GetInt("year")
+	year := ctx.GetInt64("year")
 	loc := ctx.GetString("loc")
-	nameSet := map[string]bool{}
+	nameMap := map[string]bool{}
 	err := env.db.View(func(tx *bolt.Tx) error {
 		cursor := tx.Bucket([]byte(loc)).Cursor()
 
-		min := []byte(string(year) + "-01-01")
-		max := []byte(string(year + 1) + "-01-01")
+		min := []byte(strconv.FormatInt(year, 10) + "-01-01")
+		max := []byte(strconv.FormatInt(year+1, 10) + "-01-01")
 
 		for k, v := cursor.Seek(min); k != nil && bytes.Compare(k, max) < 0; k, v = cursor.Next() {
-			nameSet = addToYearMap(nameSet, v)
+			nameMap = addToYearMap(nameMap, v)
 		}
 
 		return nil
@@ -166,6 +177,10 @@ func (env *Env) getYear(ctx *gin.Context) {
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, Reply{Msg: "读取数据库错误"})
 		return
+	}
+	nameSet := make([]string, 0, len(nameMap))
+	for key := range nameMap {
+		nameSet = append(nameSet, key)
 	}
 	ctx.JSON(http.StatusOK, nameSet)
 }
@@ -180,7 +195,7 @@ func main() {
 
 	router.GET("/log", dateFilter, locationFilter, env.getDaily)
 	router.POST("/log", dateFilter, locationFilter, marshalBody, env.putDaily)
-	router.GET("/log/year/:num", yearFilter, env.getYear)
+	router.GET("/log/year/:num", yearFilter, locationFilter, env.getYear)
 
 	router.Run(":8900")
 }
