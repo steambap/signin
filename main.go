@@ -109,7 +109,7 @@ func marshalBody(ctx *gin.Context) {
 
 	val, err := json.Marshal(body)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, Reply{Msg: "数据格式错误"})
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, Reply{Msg: "数据解析错误"})
 		return
 	}
 
@@ -139,7 +139,7 @@ func yearFilter(ctx *gin.Context) {
 	num := ctx.Param("num")
 	year, err := strconv.ParseInt(num, 10, 64)
 	if err != nil || year < 2007 {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, Reply{Msg: "日期格式错误"})
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, Reply{Msg: "年份日期错误"})
 		return
 	}
 
@@ -180,7 +180,7 @@ func (env *Env) getYear(ctx *gin.Context) {
 		return nil
 	})
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, Reply{Msg: "读取数据库错误"})
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, Reply{Msg: "读取年份错误"})
 		return
 	}
 	nameSet := make([]string, 0, len(nameMap))
