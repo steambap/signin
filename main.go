@@ -6,6 +6,7 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/static"
 	"log"
 	"net/http"
 	"strconv"
@@ -198,6 +199,7 @@ func main() {
 
 	router := gin.Default()
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
+	router.Use(static.Serve("/", static.LocalFile("./public", true)))
 
 	router.GET("/log", dateFilter, locationFilter, env.getDaily)
 	router.POST("/log", dateFilter, locationFilter, marshalBody, env.putDaily)

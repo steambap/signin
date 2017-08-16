@@ -16,3 +16,4 @@
 .idea/workspace.xml
 *.db
 *.db.lock
+public/*
