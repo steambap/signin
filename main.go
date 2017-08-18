@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"github.com/boltdb/bolt"
 	"github.com/gin-contrib/gzip"
-	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/static"
+	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	"strconv"
@@ -58,11 +58,28 @@ func dateFilter(ctx *gin.Context) {
 	ctx.Next()
 }
 
+func fmtBytes(size int) string {
+	if size > (1 << 10) {
+		return strconv.FormatFloat(
+			float64(size)/float64(1<<10), 'f', 3, 64) + "KB"
+	}
+
+	return strconv.FormatInt(int64(size), 10) + "B"
+}
+
+func xzLogger(ctx *gin.Context) {
+	ctx.Next()
+	loc := ctx.GetString("loc")
+	if loc == "" {
+		return
+	}
+	log.Printf("-->%6s|%6s", loc, fmtBytes(ctx.Writer.Size()))
+}
+
 func locationFilter(ctx *gin.Context) {
 	// 11 默认天津南开心栈
 	locKey := ctx.DefaultQuery("loc", "11")
 	if locVal, ok := bucketMap[locKey]; ok {
-		log.Printf("-->%s", locVal)
 		ctx.Set("loc", locVal)
 	} else {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, Reply{Msg: "心栈位置错误"})
@@ -198,12 +215,16 @@ func main() {
 	env := &Env{db: db}
 
 	router := gin.Default()
+	router.Use(xzLogger)
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
 	router.Use(static.Serve("/", static.LocalFile("./public", true)))
 
 	router.GET("/log", dateFilter, locationFilter, env.getDaily)
 	router.POST("/log", dateFilter, locationFilter, marshalBody, env.putDaily)
 	router.GET("/log/year/:num", yearFilter, locationFilter, env.getYear)
+
+	router.GET("/location", env.getBuckets)
+	router.GET("/")
 
 	router.Run(":8900")
 }
