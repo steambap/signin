@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/boltdb/bolt"
-	"github.com/gin-contrib/gzip"
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
+	"signin/middleware"
 	"strconv"
 	"strings"
 	"time"
@@ -216,15 +216,12 @@ func main() {
 
 	router := gin.Default()
 	router.Use(xzLogger)
-	router.Use(gzip.Gzip(gzip.DefaultCompression))
+	router.Use(middleware.Compress())
 	router.Use(static.Serve("/", static.LocalFile("./public", true)))
 
 	router.GET("/log", dateFilter, locationFilter, env.getDaily)
 	router.POST("/log", dateFilter, locationFilter, marshalBody, env.putDaily)
 	router.GET("/log/year/:num", yearFilter, locationFilter, env.getYear)
-
-	router.GET("/location", env.getBuckets)
-	router.GET("/")
 
 	router.Run(":8900")
 }
