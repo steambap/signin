@@ -168,7 +168,7 @@ func main() {
 
 	router.GET("/loc/:loc/year/:num", yearFilter, locationParamFilter, env.getYear)
 	router.GET("/loc/:loc", locationParamFilter, env.scanBucket)
-	//router.GET("/loc/:loc/week/:day")
+	router.GET("/loc/:loc/week/:day", dayParamFilter, locationParamFilter, env.handleWeek)
 
 	router.Run(":8900")
 }

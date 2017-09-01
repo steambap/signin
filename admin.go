@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"strings"
+	"time"
 )
 
 func locationParamFilter(ctx *gin.Context) {
@@ -117,4 +118,84 @@ func (env *Env) getYear(ctx *gin.Context) {
 
 	yearStats.NumOfPeople = len(nameMap)
 	ctx.JSON(http.StatusOK, yearStats)
+}
+
+func dayParamFilter(ctx *gin.Context) {
+	dayStr := ctx.Param("day")
+	dayTime, err := time.Parse("2006-01-02", dayStr)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, Reply{Msg: "日期格式错误"})
+		return
+	}
+
+	ctx.Set("dateKey", dayTime.Format("2006-01-02"))
+	ctx.Next()
+}
+
+var days = [...]string{
+	"Sunday",
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday",
+}
+
+func weekFromDay(day string) []string {
+	t, err := time.Parse( "2006-01-02", day)
+	if err != nil {
+		return nil
+	}
+	ret := make([]string, 0, 7)
+
+	weekday := int(t.Weekday())
+	// 周日
+	if weekday == 0 {
+		weekday = 7
+	}
+
+	d := time.Duration(-weekday) * 24 * time.Hour
+	lastSunday := t.Add(d)
+	for idx := range days {
+		dayOfWeek := lastSunday.Add(time.Duration(idx + 1) * 24 * time.Hour)
+		ret = append(ret, dayOfWeek.Format("2006-01-02"))
+	}
+
+	return ret
+}
+
+func (env *Env) handleWeek(ctx *gin.Context) {
+	dateKey := ctx.GetString("dateKey")
+	loc := ctx.GetString("loc")
+
+	dayList := weekFromDay(dateKey)
+	if dayList == nil {
+		ctx.JSON(http.StatusInternalServerError, Reply{Msg: "日期计算出错"})
+		return
+	}
+	logList := make([]*Body, 0, 7)
+
+	err := env.db.View(func (tx *bolt.Tx) error {
+		cursor := tx.Bucket([]byte(loc)).Cursor()
+		for _, day := range dayList {
+			// make sure k is not nil and
+			if k, v := cursor.Seek([]byte(day)); k != nil && bytes.Equal(k, []byte(day)) {
+				dailyLog := getDailyLog(v)
+				if dailyLog == nil {
+					continue
+				}
+				logList = append(logList, dailyLog)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, Reply{Msg: "读取周数据出错"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, logList)
 }

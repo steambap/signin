@@ -89,6 +89,36 @@ func TestScanBucket(t *testing.T) {
 	}
 }
 
+func TestWeekFromDay(t *testing.T) {
+	dayList := weekFromDay("2017-09-01")
+	expect := [...]string{
+		"2017-08-28",
+		"2017-08-29",
+		"2017-08-30",
+		"2017-08-31",
+		"2017-09-01",
+		"2017-09-02",
+		"2017-09-03",
+	}
+
+	for index, day := range dayList {
+		if expect[index] != day {
+			t.Fatalf("Expect day %v; Got %v", expect[index], day)
+		}
+	}
+}
+
+func TestGetWeekData(t *testing.T) {
+	res, err := runRequest(http.MethodGet, "/loc/11/week/2017-09-01", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("Expected status %d ; got %d\n", http.StatusOK, res.Code)
+	}
+}
+
 func TestMain(m *testing.M) {
 	// Switch to test mode so you don't get such noisy output
 	gin.SetMode(gin.TestMode)
@@ -104,6 +134,7 @@ func TestMain(m *testing.M) {
 	router.GET("/loc/:loc/year/:num", yearFilter, locationParamFilter, env.getYear)
 
 	router.GET("/loc/:loc", locationParamFilter, env.scanBucket)
+	router.GET("/loc/:loc/week/:day", dayParamFilter, locationParamFilter, env.handleWeek)
 
 	os.Exit(m.Run())
 }
