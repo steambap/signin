@@ -9,7 +9,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"path/filepath"
 )
 
 const level = gzip.DefaultCompression
@@ -60,12 +59,9 @@ func shouldCompress(req *http.Request) bool {
 	if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
 		return false
 	}
-	extension := filepath.Ext(req.URL.Path)
-
-	switch extension {
-	case ".png", ".css", ".js", ".map":
-		return true
-	default:
+	if req.Method != http.MethodGet {
 		return false
 	}
+
+	return true
 }

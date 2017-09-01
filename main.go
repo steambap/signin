@@ -223,6 +223,8 @@ func main() {
 	router.POST("/log", dateFilter, locationFilter, marshalBody, env.putDaily)
 	router.GET("/log/year/:num", yearFilter, locationFilter, env.getYear)
 
+	router.GET("/loc/:loc", locationParamFilter, env.scanBucket)
+
 	router.Run(":8900")
 }
 

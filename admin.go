@@ -1,24 +1,35 @@
 package main
 
 import (
-	"bytes"
 	"github.com/boltdb/bolt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
+func locationParamFilter(ctx *gin.Context) {
+	// 11 默认天津南开心栈
+	locKey := ctx.Param("loc")
+	if locVal, ok := bucketMap[locKey]; ok {
+		ctx.Set("loc", locVal)
+	} else {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, Reply{Msg: "心栈位置错误"})
+		return
+	}
+
+	ctx.Next()
+}
+
 func (env *Env) scanBucket(ctx *gin.Context) {
 	loc := ctx.GetString("loc")
-	prefix := ctx.DefaultQuery("prefix", "2017")
-	result := map[string]string{}
+	result := []string{}
 
 	err := env.db.View(func(tx *bolt.Tx) error {
-		cursor := tx.Bucket([]byte(loc)).Cursor()
+		b := tx.Bucket([]byte(loc))
 
-		bPrefix := []byte(prefix)
-		for k, v := cursor.Seek(bPrefix); k != nil && bytes.HasPrefix(k, bPrefix); k, v = cursor.Next() {
-			result[string(k)] = string(v)
-		}
+		b.ForEach(func(k, _ []byte) error {
+			result = append(result, string(k))
+			return nil
+		})
 		return nil
 	})
 	if err != nil {

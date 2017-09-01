@@ -78,6 +78,17 @@ func TestGetYear(t *testing.T) {
 	}
 }
 
+func TestScanBucket(t *testing.T) {
+	res, err := runRequest(http.MethodGet, "/loc/11", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("Expected status %d ; got %d \n", http.StatusOK, res.Code)
+	}
+}
+
 func TestMain(m *testing.M) {
 	// Switch to test mode so you don't get such noisy output
 	gin.SetMode(gin.TestMode)
@@ -91,6 +102,9 @@ func TestMain(m *testing.M) {
 	router.GET("/log", dateFilter, locationFilter, env.getDaily)
 	router.POST("/log", dateFilter, locationFilter, marshalBody, env.putDaily)
 	router.GET("/log/year/:num", yearFilter, locationFilter, env.getYear)
+
+	router.GET("/loc/:loc", locationParamFilter, env.scanBucket)
+
 	os.Exit(m.Run())
 }
 
