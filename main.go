@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"github.com/boltdb/bolt"
 	"github.com/gin-contrib/static"
@@ -153,61 +152,6 @@ func (env *Env) putDaily(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, Reply{Msg: "OK"})
 }
 
-func yearFilter(ctx *gin.Context) {
-	num := ctx.Param("num")
-	year, err := strconv.ParseInt(num, 10, 64)
-	if err != nil || year < 2007 {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, Reply{Msg: "年份日期错误"})
-		return
-	}
-
-	ctx.Set("year", year)
-	ctx.Next()
-}
-
-func addToYearMap(nameMap map[string]bool, value []byte) map[string]bool {
-	body := Body{
-		Names:   make([]string, 0),
-		Tags:    make([]string, 0),
-		Comment: "",
-		CupSize: -1,
-	}
-	if err := json.Unmarshal(value, &body); err != nil {
-		return nameMap
-	}
-	for _, name := range body.Names {
-		nameMap[name] = true
-	}
-	return nameMap
-}
-
-func (env *Env) getYear(ctx *gin.Context) {
-	year := ctx.GetInt64("year")
-	loc := ctx.GetString("loc")
-	nameMap := map[string]bool{}
-	err := env.db.View(func(tx *bolt.Tx) error {
-		cursor := tx.Bucket([]byte(loc)).Cursor()
-
-		min := []byte(strconv.FormatInt(year, 10) + "-01-01")
-		max := []byte(strconv.FormatInt(year+1, 10) + "-01-01")
-
-		for k, v := cursor.Seek(min); k != nil && bytes.Compare(k, max) < 0; k, v = cursor.Next() {
-			nameMap = addToYearMap(nameMap, v)
-		}
-
-		return nil
-	})
-	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, Reply{Msg: "读取年份错误"})
-		return
-	}
-	nameSet := make([]string, 0, len(nameMap))
-	for key := range nameMap {
-		nameSet = append(nameSet, key)
-	}
-	ctx.JSON(http.StatusOK, nameSet)
-}
-
 func main() {
 	db := startBoltDb(DB_NAME)
 	defer db.Close()
@@ -221,9 +165,10 @@ func main() {
 
 	router.GET("/log", dateFilter, locationFilter, env.getDaily)
 	router.POST("/log", dateFilter, locationFilter, marshalBody, env.putDaily)
-	router.GET("/log/year/:num", yearFilter, locationFilter, env.getYear)
 
+	router.GET("/loc/:loc/year/:num", yearFilter, locationParamFilter, env.getYear)
 	router.GET("/loc/:loc", locationParamFilter, env.scanBucket)
+	//router.GET("/loc/:loc/week/:day")
 
 	router.Run(":8900")
 }

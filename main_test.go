@@ -67,7 +67,7 @@ func TestPostDailyLog(t *testing.T) {
 }
 
 func TestGetYear(t *testing.T) {
-	res, err := runRequest(http.MethodGet, "/log/year/2017?loc=11", nil)
+	res, err := runRequest(http.MethodGet, "/loc/11/year/2017", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestMain(m *testing.M) {
 
 	router.GET("/log", dateFilter, locationFilter, env.getDaily)
 	router.POST("/log", dateFilter, locationFilter, marshalBody, env.putDaily)
-	router.GET("/log/year/:num", yearFilter, locationFilter, env.getYear)
+	router.GET("/loc/:loc/year/:num", yearFilter, locationParamFilter, env.getYear)
 
 	router.GET("/loc/:loc", locationParamFilter, env.scanBucket)
 
