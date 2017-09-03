@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"github.com/boltdb/bolt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
-	"bytes"
-	"encoding/json"
 	"strings"
 	"time"
 )
@@ -45,10 +45,10 @@ func (env *Env) scanBucket(ctx *gin.Context) {
 }
 
 type YearStats struct {
-	CupSize int `json:"cupSize"`
-	NumOfTime int `json:"numOfTime"`
+	CupSize     int `json:"cupSize"`
+	NumOfTime   int `json:"numOfTime"`
 	NumOfPeople int `json:"numOfPeople"`
-	NumOfNew int `json:"numOfNew"`
+	NumOfNew    int `json:"numOfNew"`
 }
 
 func yearFilter(ctx *gin.Context) {
@@ -143,7 +143,7 @@ var days = [...]string{
 }
 
 func weekFromDay(day string) []string {
-	t, err := time.Parse( "2006-01-02", day)
+	t, err := time.Parse("2006-01-02", day)
 	if err != nil {
 		return nil
 	}
@@ -158,7 +158,7 @@ func weekFromDay(day string) []string {
 	d := time.Duration(-weekday) * 24 * time.Hour
 	lastSunday := t.Add(d)
 	for idx := range days {
-		dayOfWeek := lastSunday.Add(time.Duration(idx + 1) * 24 * time.Hour)
+		dayOfWeek := lastSunday.Add(time.Duration(idx+1) * 24 * time.Hour)
 		ret = append(ret, dayOfWeek.Format("2006-01-02"))
 	}
 
@@ -176,10 +176,10 @@ func (env *Env) handleWeek(ctx *gin.Context) {
 	}
 	logList := make([]*Body, 0, 7)
 
-	err := env.db.View(func (tx *bolt.Tx) error {
+	err := env.db.View(func(tx *bolt.Tx) error {
 		cursor := tx.Bucket([]byte(loc)).Cursor()
 		for _, day := range dayList {
-			// make sure k is not nil and
+			// make sure k is not nil and is the exact day
 			if k, v := cursor.Seek([]byte(day)); k != nil && bytes.Equal(k, []byte(day)) {
 				dailyLog := getDailyLog(v)
 				if dailyLog == nil {
