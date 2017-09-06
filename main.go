@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
-	"signin/middleware"
+	"github.com/steambap/signin/middleware"
 	"strconv"
 	"strings"
 	"time"

@@ -1,5 +1,25 @@
 # 电子签到
 
-> 仁爱心栈电子签到后台 http://xinzhanqiandao.xuedot.com
+> go get github.com/steambap/signin
 
 [![Build Status](https://travis-ci.org/steambap/signin.svg)](https://travis-ci.org/steambap/signin)
+
+## API
+
+### get /log 获取日志
+
+参数：
+
+- date 时间
+- loc 心栈编号
+
+示例：/log?date=2017-09-06&loc=11
+
+### post /log 保存日志
+
+参数：
+
+- date 时间
+- loc 心栈编号
+
+示例：/log?date=2017-09-06&loc=11
