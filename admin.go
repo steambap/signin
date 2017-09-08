@@ -45,10 +45,10 @@ func (env *Env) scanBucket(ctx *gin.Context) {
 }
 
 type YearStats struct {
-	CupSize     int `json:"cupSize"`
-	NumOfTime   int `json:"numOfTime"`
-	NumOfPeople int `json:"numOfPeople"`
-	NumOfNew    int `json:"numOfNew"`
+	CupSize   int      `json:"cupSize"`
+	NumOfTime int      `json:"numOfTime"`
+	NumOfNew  int      `json:"numOfNew"`
+	Names     []string `json:"names"`
 }
 
 func yearFilter(ctx *gin.Context) {
@@ -87,11 +87,20 @@ func updateYearStats(stats *YearStats, body *Body) {
 	}
 }
 
+func addToMap(nameMap map[string]int, names []string) {
+	for _, name := range names {
+		_, ok := nameMap[name]
+		if !ok {
+			nameMap[name] = len(nameMap)
+		}
+	}
+}
+
 func (env *Env) getYear(ctx *gin.Context) {
 	year := ctx.GetInt64("year")
 	loc := ctx.GetString("loc")
-	yearStats := YearStats{0, 0, 0, 0}
-	nameMap := map[string]bool{}
+	yearStats := YearStats{0, 0, 0, make([]string, 0)}
+	nameMap := map[string]int{}
 	err := env.db.View(func(tx *bolt.Tx) error {
 		cursor := tx.Bucket([]byte(loc)).Cursor()
 
@@ -104,9 +113,7 @@ func (env *Env) getYear(ctx *gin.Context) {
 				continue
 			}
 			updateYearStats(&yearStats, dailyLog)
-			for _, name := range dailyLog.Names {
-				nameMap[name] = true
-			}
+			addToMap(nameMap, dailyLog.Names)
 		}
 
 		return nil
@@ -116,7 +123,9 @@ func (env *Env) getYear(ctx *gin.Context) {
 		return
 	}
 
-	yearStats.NumOfPeople = len(nameMap)
+	for name := range nameMap {
+		yearStats.Names = append(yearStats.Names, name)
+	}
 	ctx.JSON(http.StatusOK, yearStats)
 }
 
