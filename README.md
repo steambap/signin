@@ -4,6 +4,10 @@
 
 [![Build Status](https://travis-ci.org/steambap/signin.svg)](https://travis-ci.org/steambap/signin)
 
+## Build
+
+> GOOS=linux GOARCH=amd64 go build -ldflags="-s -w"
+
 ## API
 
 ### get /log 获取日志
